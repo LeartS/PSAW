@@ -51,6 +51,7 @@ class Searchanise(object):
             'url': store_url,
             'email': admin_email,
             'version': self.api_version,
+            'parent_private_key': parent_private_key,
         }
         result = self._send_request('signup', data=parameters)
         return result[0].text, result[1].text
