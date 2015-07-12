@@ -30,6 +30,7 @@ class Searchanise(object):
         self.private_key = private_key
         self.api_version = 1.2
         self.prebuilt_custom_field_elements = {}
+        self.products_queue = []
 
     def _parse_response(self, response):
         root = etree.fromstring(response.content)
@@ -158,7 +159,27 @@ class Searchanise(object):
         return entry
 
     @requires_private_key
-    def update(self, products, custom_fields_params=None):
+    def delete(self, product_identifier):
+        data = {'private_key': self.private_key, 'id': product_identifier}
+        self._send_request('delete', data=data)
+
+    @requires_private_key
+    def delete_all(self):
+        data = {'private_key': self.private_key, 'all': 1}
+        self._send_request('delete', data=data)
+
+    def add(self, product):
+        """
+        Add a single product to the queue of products to be sent to searchanise
+        at the next ``.update()``
+        """
+        self.products_queue.append(product)
+
+    def set_custom_fields_params(custom_fields_params):
+        self.prebuild_custom_fields_elements(custom_fields_params)
+
+    @requires_private_key
+    def update(self, products=None, custom_fields_params=None):
         """
         Sends an update command to searchanise.
 
@@ -170,17 +191,24 @@ class Searchanise(object):
                 like search_text and weight.
                 example: {'custom_field1': {'search_text': True, weight: 3}}
         """
+        if products:
+            for product in products:
+                self.add(product)
+        if custom_fields_params:
+            self.set_custom_fields_params(custom_fields_params)
+
         timestamp = datetime.datetime.now(pytz.utc)
         feed = etree.Element('{{}}feed'.format(NSMAP[None]), nsmap=NSMAP)
         etree.SubElement(feed, 'title').text = 'Searchanise data feed'
         etree.SubElement(feed, 'updated').text = timestamp.isoformat()
         etree.SubElement(feed, 'id').text = 'boh'
-        if custom_fields_params:
-            self.prebuild_custom_fields_elements(custom_fields_params)
-        for product in products:
+
+        for product in self.products_queue:
             feed.append(self.build_product_entry(product))
+
         data = {
             'private_key': self.private_key,
             'data': etree.tostring(feed),
         }
         self._send_request('update', data=data)
+        self.products_queue = []
