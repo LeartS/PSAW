@@ -94,16 +94,13 @@ class Searchanise(object):
 
         # we must check if string type first because it's also iterable
         base_string_type = basestring if sys.version_info[0] < 3 else str
-        print 'Prebuilt element for {}: {}'.format(custom_field_name, etree.tostring(custom_field))
         if isinstance(custom_field_value, base_string_type):
-            custom_field.text = str(custom_field_value)
+            custom_field.text = str(custom_field_value or '')
             return custom_field
         # It's not string or similar, we can use duck typing now!
         try:
             for value in custom_field_value:
-                print value
-                etree.SubElement(custom_field, 'value').text = str(value)
-            print 'Values of custom_fields: {}'.format(','.join(str(v) for v in custom_field_value))
+                etree.SubElement(custom_field, 'value').text = str(value or '')
         except TypeError: # not iterable
             custom_field.text = str(custom_field_value)
         return custom_field
@@ -150,7 +147,7 @@ class Searchanise(object):
 
         # standard fields: they have their own tag
         for field in keys_set & STANDARD_ENTRY_FIELDS:
-            etree.SubElement(entry, field).text=product_dict[field]
+            etree.SubElement(entry, field).text = str(product_dict[field] or '')
         # custom fields: generic tag
         for field in keys_set - STANDARD_ENTRY_FIELDS:
             custom_field = self.build_custom_field(field, product_dict[field])
