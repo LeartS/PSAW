@@ -72,7 +72,8 @@ class Searchanise(object):
         for different products, but we don't feel this does actually make sense.
         """
         for custom_field_name, params in custom_fields_params.items():
-            el = etree.Element('{{}}attribute'.format(NSMAP['cs']), nsmap=NSMAP)
+            complete_field_name = '{' + NSMAP['cs'] + '}' + custom_field_name
+            el = etree.Element(complete_field_name, nsmap=NSMAP)
             el.set('name', custom_field_name)
             if params.get('text_search', False):
                 el.set('text_search', 'Y')
@@ -136,17 +137,22 @@ class Searchanise(object):
                 ' required field.')
 
         # Root entry element
-        entry = etree.Element('entry')
+        entry = etree.Element('entry', nsmap=NSMAP)
 
-        # standard fields: they have their own tag
-        for field in keys_set & STANDARD_ENTRY_FIELDS:
+        # required standard fields: simple tag
+        for field in keys_set & REQUIRED_ENTRY_FIELDS:
             if field == 'link':
                 # the link value needs to be passed in the href attribute
                 etree.SubElement(entry, field, href=product_dict[field])
                 continue
             etree.SubElement(entry, field).text = self._sanitize_text(
                 product_dict[field])
-        # custom fields: generic tag
+        # optional standard field: prefix
+        for field in keys_set & OPTIONAL_ENTRY_FIELDS:
+            complete_field = '{' + NSMAP['cs'] + '}' + field
+            etree.SubElement(entry, complete_field).text = self._sanitize_text(
+                product_dict[field])
+        # custom fields: generic tag with prefix
         for field in keys_set - STANDARD_ENTRY_FIELDS:
             custom_field = self._build_custom_field(field, product_dict[field])
             entry.append(custom_field)
