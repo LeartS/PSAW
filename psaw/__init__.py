@@ -1,10 +1,7 @@
 import sys
 import requests
 import copy
-try:
-    from lxml import etree
-except ImportError:
-    import xml.etree.ElementTree as etree
+from lxml import etree
 import datetime
 import pytz
 
@@ -29,8 +26,8 @@ class Searchanise(object):
         self.max_products_per_feed = 200
         self.private_key = private_key
         self.api_version = 1.2
-        self.prebuilt_custom_field_elements = {}
-        self.products_queue = []
+        self._prebuilt_custom_field_elements = {}
+        self._products_queue = []
 
     def _parse_response(self, response):
         root = etree.fromstring(response.content)
@@ -47,32 +44,27 @@ class Searchanise(object):
         r = getattr(requests, method)(self.base_url + operation, data=data)
         return self._parse_response(r)
 
-    def register(self, store_url, admin_email, parent_private_key=None):
-        parameters = {
-            'url': store_url,
-            'email': admin_email,
-            'version': self.api_version,
-            'parent_private_key': parent_private_key,
-        }
-        result = self._send_request('signup', data=parameters)
-        return result[0].text, result[1].text
+    def _sanitize_text(self, element_value):
+        if element_value is None or element_value is False:
+            return ''
+        try:
+            _ = element_value + 0.0
+            return str(element_value)
+        except TypeError:
+            return etree.CDATA(element_value)
 
-    def set_keys(self, api_key, private_key):
-        self.api_key = api_key
-        self.private_key = private_key
-
-    def get_prebuilt_custom_field_element(self, custom_field_name):
+    def _get_prebuilt_custom_field_element(self, custom_field_name):
         """
         Returns the prebuilt etree element for the custom field with the
         optional attributes already prepared, or a bare element if there
         isn't any.
         """
-        if custom_field_name in self.prebuilt_custom_field_elements:
+        if custom_field_name in self._prebuilt_custom_field_elements:
             return copy.deepcopy(
-                self.prebuilt_custom_field_elements[custom_field_name])
+                self._prebuilt_custom_field_elements[custom_field_name])
         return etree.Element('{{}}attribute'.format(NSMAP['cs']), nsmap=NSMAP)
 
-    def prebuild_custom_fields_elements(self, custom_fields_params):
+    def _prebuild_custom_fields_elements(self, custom_fields_params):
         """
         Prebuild custom field elements with the optional attributes already
         set so that we don't have to set them everytime.
@@ -87,25 +79,26 @@ class Searchanise(object):
                 el.set('weight', str(params['weight']))
             if params.get('type', False):
                 el.set('type', params['type'])
-            self.prebuilt_custom_field_elements[custom_field_name] = el
+            self._prebuilt_custom_field_elements[custom_field_name] = el
 
-    def build_custom_field(self, custom_field_name, custom_field_value):
-        custom_field = self.get_prebuilt_custom_field_element(custom_field_name)
+    def _build_custom_field(self, custom_field_name, custom_field_value):
+        custom_field = self._get_prebuilt_custom_field_element(custom_field_name)
 
         # we must check if string type first because it's also iterable
         base_string_type = basestring if sys.version_info[0] < 3 else str
         if isinstance(custom_field_value, base_string_type):
-            custom_field.text = str(custom_field_value or '')
+            custom_field.text = self._sanitize_text(custom_field_value)
             return custom_field
         # It's not string or similar, we can use duck typing now!
         try:
             for value in custom_field_value:
-                etree.SubElement(custom_field, 'value').text = str(value or '')
+                str_value = self._sanitize_text(value)
+                etree.SubElement(custom_field, 'value').text = str_value
         except TypeError: # not iterable
-            custom_field.text = str(custom_field_value)
+            custom_field.text = self._sanitize_text(custom_field_value)
         return custom_field
 
-    def build_product_entry(self, product_dict):
+    def _build_product_entry(self, product_dict):
         """
         Build the XML entry for a product.
 
@@ -147,13 +140,32 @@ class Searchanise(object):
 
         # standard fields: they have their own tag
         for field in keys_set & STANDARD_ENTRY_FIELDS:
-            etree.SubElement(entry, field).text = str(product_dict[field] or '')
+            if field == 'link':
+                # the link value needs to be passed in the href attribute
+                etree.SubElement(entry, field, href=product_dict[field])
+                continue
+            etree.SubElement(entry, field).text = self._sanitize_text(
+                product_dict[field])
         # custom fields: generic tag
         for field in keys_set - STANDARD_ENTRY_FIELDS:
-            custom_field = self.build_custom_field(field, product_dict[field])
+            custom_field = self._build_custom_field(field, product_dict[field])
             entry.append(custom_field)
 
         return entry
+
+    def register(self, store_url, admin_email, parent_private_key=None):
+        parameters = {
+            'url': store_url,
+            'email': admin_email,
+            'version': self.api_version,
+            'parent_private_key': parent_private_key,
+        }
+        result = self._send_request('signup', data=parameters)
+        return result[0].text, result[1].text
+
+    def set_keys(self, api_key, private_key):
+        self.api_key = api_key
+        self.private_key = private_key
 
     @requires_private_key
     def delete(self, product_identifier):
@@ -170,10 +182,10 @@ class Searchanise(object):
         Add a single product to the queue of products to be sent to searchanise
         at the next ``.update()``
         """
-        self.products_queue.append(product)
+        self._products_queue.append(product)
 
-    def set_custom_fields_params(custom_fields_params):
-        self.prebuild_custom_fields_elements(custom_fields_params)
+    def set_custom_fields_params(self, custom_fields_params):
+        self._prebuild_custom_fields_elements(custom_fields_params)
 
     @requires_private_key
     def update(self, products=None, custom_fields_params=None):
@@ -200,12 +212,12 @@ class Searchanise(object):
         etree.SubElement(feed, 'updated').text = timestamp.isoformat()
         etree.SubElement(feed, 'id').text = 'boh'
 
-        for product in self.products_queue:
-            feed.append(self.build_product_entry(product))
+        for product in self._products_queue:
+            feed.append(self._build_product_entry(product))
 
         data = {
             'private_key': self.private_key,
             'data': etree.tostring(feed),
         }
         self._send_request('update', data=data)
-        self.products_queue = []
+        self._products_queue = []
