@@ -5,7 +5,7 @@ def requires_private_key(method):
         if not self.private_key:
             raise PSAWException(
                 'The {} method requires a private key'.format(method.__name__))
-        method(self, *args, **kwargs)
+        return method(self, *args, **kwargs)
     return wrapper
 
 def requires_api_key(method):
@@ -13,5 +13,5 @@ def requires_api_key(method):
         if not self.api_key:
             raise PSAWException(
                 'The {} method requires an API key'.format(method.__name__))
-        method(self, *args, **kwargs)
+        return method(self, *args, **kwargs)
     return wrapper

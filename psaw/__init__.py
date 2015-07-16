@@ -24,6 +24,7 @@ class Searchanise(object):
                  max_products_per_feed=200):
         self.base_url = 'http://searchanise.com/api/'
         self.max_products_per_feed = 200
+        self.api_key = api_key
         self.private_key = private_key
         self.api_version = 1.2
         self._prebuilt_custom_field_elements = {}
