@@ -228,3 +228,41 @@ class Searchanise(object):
         }
         self._send_request('update', data=data)
         self._products_queue = []
+
+    def query(self, query_string=''):
+        """
+        Initialize a search query.
+
+        Args:
+            query_string (string): the ``q`` parameter of the
+                Searchanise Search APIs
+
+        Returns:
+            A SearchaniseQuery object initialized with the supplied
+            query string and bound to this instance.
+        """
+        return SearchaniseQuery(self, query_string)
+
+class SearchaniseQuery(object):
+
+    def __init__(self, searchanise_instance, query_string='', output_format='json'):
+        self.searchanise_instance = searchanise_instance
+        self.query_string = query_string
+        self.output_format = output_format
+
+    @property
+    def api_key(self):
+        return self.searchanise_instance.api_key
+
+    @property
+    def private_key(self):
+        return self.searchanise_instance.private_key
+
+    @requires_api_key
+    def execute(self):
+        data = {
+            'api_key': self.api_key,
+            'q': self.query_string,
+        }
+        res = requests.get('http://searchanise.com/search', params=data)
+        return res.content
