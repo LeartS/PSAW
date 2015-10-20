@@ -70,7 +70,7 @@ class Searchanise(object):
         Prebuild custom field elements with the optional attributes already
         set so that we don't have to set them everytime.
         Theoretically the same custom field could have different attributes
-        for different products, but we don't feel this does actually make sense.
+        for different products, but I think this doesn't make sense
         """
         for custom_field_name, params in custom_fields_params.items():
             complete_field_name = '{' + NSMAP['cs'] + '}' + custom_field_name
@@ -177,12 +177,12 @@ class Searchanise(object):
     @requires_private_key
     def delete(self, product_identifier):
         data = {'private_key': self.private_key, 'id': product_identifier}
-        self._send_request('delete', data=data)
+        return self._send_request('delete', data=data)
 
     @requires_private_key
     def delete_all(self):
         data = {'private_key': self.private_key, 'all': 1}
-        self._send_request('delete', data=data)
+        return self._send_request('delete', data=data)
 
     def add(self, product):
         """
@@ -212,6 +212,10 @@ class Searchanise(object):
                 self.add(product)
         if custom_fields_params:
             self.set_custom_fields_params(custom_fields_params)
+
+        if not self._products_queue:
+            # nothing to send, skip update request
+            return
 
         timestamp = datetime.datetime.now(pytz.utc)
         feed = etree.Element('{{}}feed'.format(NSMAP[None]), nsmap=NSMAP)
@@ -243,9 +247,11 @@ class Searchanise(object):
         """
         return SearchaniseQuery(self, query_string)
 
+
 class SearchaniseQuery(object):
 
-    def __init__(self, searchanise_instance, query_string='', output_format='json'):
+    def __init__(self, searchanise_instance, query_string='',
+                 output_format='json'):
         self.searchanise_instance = searchanise_instance
         self.query_string = query_string
         self.output_format = output_format
