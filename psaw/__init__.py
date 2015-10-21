@@ -1,12 +1,17 @@
-import sys
-import requests
 import copy
-from lxml import etree
 import datetime
+import logging
 import pytz
+import sys
+from lxml import etree
 
-from .exceptions import SearchaniseException, PSAWException
-from .decorators import requires_api_key, requires_private_key
+import requests
+
+from psaw.decorators import requires_api_key, requires_private_key
+from psaw.exceptions import SearchaniseException, PSAWException
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 REQUIRED_ENTRY_FIELDS = {'id', 'title', 'summary', 'link'}
 OPTIONAL_ENTRY_FIELDS = {'price', 'quantity', 'product_code', 'image_link'}
@@ -31,6 +36,7 @@ class Searchanise(object):
         self._products_queue = []
 
     def _parse_response(self, response):
+        logger.debug('Received response: %s', response.content)
         root = etree.fromstring(response.content)
         if root.tag == 'errors':
             raise SearchaniseException('\n'.join(error.text for error in root))
@@ -40,6 +46,7 @@ class Searchanise(object):
         """
         Returns the XML root node as an ElementTree node
         """
+        logger.debug('Sending request %s: %s', self.base_url + operation, data)
         data = data if data else {}
         assert method in ('post', 'get'), "Invalid request method"
         r = getattr(requests, method)(self.base_url + operation, data=data)
@@ -161,6 +168,7 @@ class Searchanise(object):
         return entry
 
     def register(self, store_url, admin_email, parent_private_key=None):
+        logger.info('Registering store: %s %s', store_url, admin_email)
         parameters = {
             'url': store_url,
             'email': admin_email,
@@ -176,11 +184,13 @@ class Searchanise(object):
 
     @requires_private_key
     def delete(self, product_identifier):
+        logger.info('Deleting product %s', product_identifier)
         data = {'private_key': self.private_key, 'id': product_identifier}
         return self._send_request('delete', data=data)
 
     @requires_private_key
     def delete_all(self):
+        logger.info('Deleting all products')
         data = {'private_key': self.private_key, 'all': 1}
         return self._send_request('delete', data=data)
 
@@ -217,6 +227,9 @@ class Searchanise(object):
             # nothing to send, skip update request
             return
 
+        logger.info('Sending update request for %d products',
+                    len(self._products_queue))
+
         timestamp = datetime.datetime.now(pytz.utc)
         feed = etree.Element('{{}}feed'.format(NSMAP[None]), nsmap=NSMAP)
         etree.SubElement(feed, 'title').text = 'Searchanise data feed'
@@ -245,6 +258,7 @@ class Searchanise(object):
             A SearchaniseQuery object initialized with the supplied
             query string and bound to this instance.
         """
+        logger.info('Querying with query_string: %s', query_string)
         return SearchaniseQuery(self, query_string)
 
 

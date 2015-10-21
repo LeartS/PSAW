@@ -12,7 +12,7 @@ with open(path.join(HERE, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name=PACKAGE_NAME,
-    version='0.1.dev8',
+    version='0.1.dev9',
     description='Searchanise API wrapper',
     long_description=README,
     url='https://github.com/LeartS/PSAW',
