@@ -67,10 +67,10 @@ class Searchanise(object):
         optional attributes already prepared, or a bare element if there
         isn't any.
         """
-        if custom_field_name in self._prebuilt_custom_field_elements:
-            return copy.deepcopy(
-                self._prebuilt_custom_field_elements[custom_field_name])
-        return etree.Element('{{}}attribute'.format(NSMAP['cs']), nsmap=NSMAP)
+        if custom_field_name not in self._prebuilt_custom_field_elements:
+            self._prebuild_custom_fields_elements({custom_field_name: {}})
+        return copy.deepcopy(
+            self._prebuilt_custom_field_elements[custom_field_name])
 
     def _prebuild_custom_fields_elements(self, custom_fields_params):
         """
@@ -80,7 +80,7 @@ class Searchanise(object):
         for different products, but I think this doesn't make sense
         """
         for custom_field_name, params in custom_fields_params.items():
-            complete_field_name = '{' + NSMAP['cs'] + '}' + custom_field_name
+            complete_field_name = '{' + NSMAP['cs'] + '}attribute'
             el = etree.Element(complete_field_name, nsmap=NSMAP)
             el.set('name', custom_field_name)
             if params.get('text_search', False):
@@ -131,7 +131,7 @@ class Searchanise(object):
                       some custom fields parameters like text_search and weight.
                       example::
 
-                          {
+                          'my_custom_field': {
                               'type': 'int', # required, 'text' 'int' or 'float'
                               'values': [1, 2], # required, list/tuple
                               'text_search': True, # required, boolean
