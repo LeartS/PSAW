@@ -269,6 +269,8 @@ class SearchaniseQuery(object):
         self.searchanise_instance = searchanise_instance
         self.query_string = query_string
         self.output_format = output_format
+        self._restrict_by = {}
+        self._query_by = {}
 
     @property
     def api_key(self):
@@ -278,11 +280,39 @@ class SearchaniseQuery(object):
     def private_key(self):
         return self.searchanise_instance.private_key
 
+    def _get_query_params(self):
+
+        def format_params(p_dict, name):
+            return dict(
+                ('{}[{}]'.format(name, a), v) for a, v in p_dict.iteritems()
+            )
+
+        query_params = {}
+        # Filtering/Condition params: queryBy, restrictBy
+        conditions = [
+            ('restrictBy', self._restrict_by),
+            ('queryBy', self._query_by),
+        ]
+        for cond_name, cond_dict in conditions:
+            query_params.update(format_params(cond_dict, cond_name))
+        # standard query param
+        query_params['q'] = self.query_string
+        # api keys
+        query_params['api_key'] = self.api_key
+        return query_params
+
+    def restrict_by(self, **kwargs):
+        for attribute, value in kwargs.items():
+            self._restrict_by[attribute] = value
+        return self
+
+    def query_by(self, **kwargs):
+        for attribute, value in kwargs.items():
+            self._query_by[attribute] = value
+        return self
+
     @requires_api_key
     def execute(self):
-        data = {
-            'api_key': self.api_key,
-            'q': self.query_string,
-        }
-        res = requests.get('http://searchanise.com/search', params=data)
-        return res.content
+        params = self._get_query_params()
+        res = requests.get('http://searchanise.com/search', params=params)
+        return res.json()
