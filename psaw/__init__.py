@@ -25,12 +25,13 @@ NSMAP = {
 
 class Searchanise(object):
 
-    def __init__(self, api_key=None, private_key=None,
+    def __init__(self, api_key=None, private_key=None, store_url=None,
                  max_products_per_feed=200):
         self.base_url = 'http://searchanise.com/api/'
         self.max_products_per_feed = 200
         self.api_key = api_key
         self.private_key = private_key
+        self.store_url = store_url
         self.api_version = 1.2
         self._prebuilt_custom_field_elements = {}
         self._products_queue = []
@@ -103,6 +104,11 @@ class Searchanise(object):
             for value in custom_field_value:
                 str_value = self._sanitize_text(value)
                 etree.SubElement(custom_field, 'value').text = str_value
+            # Searchanise doesn't seem to support self-closing tags,
+            # this is a workaround to make sure there is an explicit
+            # closing tag
+            if len(custom_field.getchildren()) == 0:
+                custom_field.text = ''
         except TypeError: # not iterable
             custom_field.text = self._sanitize_text(custom_field_value)
         return custom_field
