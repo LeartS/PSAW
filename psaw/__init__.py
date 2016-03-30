@@ -245,9 +245,12 @@ class Searchanise(object):
         for product in self._products_queue:
             feed.append(self._build_product_entry(product))
 
+        # pretty_print=True bacause it seems like searchanise doesn't support
+        # values without whitespace:
+        # https://help.searchanise.com/support/discussions/topics/11000002113
         data = {
             'private_key': self.private_key,
-            'data': etree.tostring(feed),
+            'data': etree.tostring(feed, pretty_print=True),
         }
         self._send_request('update', data=data)
         self._products_queue = []
