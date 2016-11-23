@@ -92,7 +92,8 @@ class Searchanise(object):
             self._prebuilt_custom_field_elements[custom_field_name] = el
 
     def _build_custom_field(self, custom_field_name, custom_field_value):
-        custom_field = self._get_prebuilt_custom_field_element(custom_field_name)
+        custom_field = self._get_prebuilt_custom_field_element(
+            custom_field_name)
 
         # we must check if string type first because it's also iterable
         base_string_type = basestring if sys.version_info[0] < 3 else str
@@ -109,7 +110,7 @@ class Searchanise(object):
             # closing tag
             if len(custom_field.getchildren()) == 0:
                 custom_field.text = ''
-        except TypeError: # not iterable
+        except TypeError:  # not iterable
             custom_field.text = self._sanitize_text(custom_field_value)
         return custom_field
 
@@ -134,11 +135,11 @@ class Searchanise(object):
                       (e.g. a list of string for tags).
                       example: ``['tag1', 'tag2', 'tag3']``
                     * a dictionary in the form below if you need to specify
-                      some custom fields parameters like text_search and weight.
+                      some custom fields parameters like text_search or weight
                       example::
 
                           'my_custom_field': {
-                              'type': 'int', # required, 'text' 'int' or 'float'
+                              'type': 'int',# required, 'text' 'int' or 'float'
                               'values': [1, 2], # required, list/tuple
                               'text_search': True, # required, boolean
                               'weight': 12 # only if text_search is True, int.
