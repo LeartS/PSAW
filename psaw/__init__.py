@@ -2,6 +2,7 @@ import copy
 import datetime
 import logging
 import pytz
+import re
 import sys
 from lxml import etree
 
@@ -54,13 +55,25 @@ class Searchanise(object):
         return self._parse_response(r)
 
     def _sanitize_text(self, element_value):
+
+        def remove_control_characters(value):
+            value = re.sub(ur"[\x00-\x08\x0b\x0e-\x1f\x7f]", "", value)
+            return value
+
         if element_value is None or element_value is False:
             return ''
         try:
             _ = element_value + 0.0
             return str(element_value)
         except TypeError:
-            return etree.CDATA(element_value)
+            try:
+                return etree.CDATA(remove_control_characters(element_value))
+            except ValueError:
+                logger.error(
+                    'Invalid element value %s, passing empty string...',
+                    element_value)
+                return ''
+
 
     def _get_prebuilt_custom_field_element(self, custom_field_name):
         """
