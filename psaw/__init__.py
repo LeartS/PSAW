@@ -269,7 +269,7 @@ class Searchanise(object):
         self._send_request('update', data=data)
         self._products_queue = []
 
-    def query(self, query_string=''):
+    def query(self, query_string='', **kwargs):
         """
         Initialize a search query.
 
@@ -282,18 +282,20 @@ class Searchanise(object):
             query string and bound to this instance.
         """
         logger.info('Querying with query_string: %s', query_string)
-        return SearchaniseQuery(self, query_string)
+        return SearchaniseQuery(self, query_string=query_string, **kwargs)
 
 
 class SearchaniseQuery(object):
 
     def __init__(self, searchanise_instance, query_string='',
-                 output_format='json'):
+                 output_format='json', max_results=10, start_index=0):
         self.searchanise_instance = searchanise_instance
         self.query_string = query_string
         self.output_format = output_format
         self._restrict_by = {}
         self._query_by = {}
+        self.max_results = max_results
+        self.start_index = start_index
 
     @property
     def api_key(self):
@@ -320,6 +322,9 @@ class SearchaniseQuery(object):
             query_params.update(format_params(cond_dict, cond_name))
         # standard query param
         query_params['q'] = self.query_string
+        # paging
+        query_params['startIndex'] = self.start_index
+        query_params['maxResults'] = self.max_results
         # api keys
         query_params['api_key'] = self.api_key
         return query_params
